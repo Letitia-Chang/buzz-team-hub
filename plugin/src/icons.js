@@ -26,7 +26,6 @@ function svgIcon(createElement, name, { size = 16, strokeWidth = 1.75, style } =
     dangerouslySetInnerHTML: { __html: ICONS[name] || "" },
   });
 }
-}
 /** A data URL for Buzz's navigation. Buzz tints currentColor SVGs to match its theme. */
 const iconDataUrl = (name) =>
   "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`);
