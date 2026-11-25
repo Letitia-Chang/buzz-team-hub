@@ -63,7 +63,7 @@ const server = createServer(async (req, res) => {
     const body = await readJson(req).catch(() => ({}));
     const project = { id: "p" + Date.now(), name: String(body.name || "Untitled").slice(0, 80), status: String(body.status || "New").slice(0, 40), lead: String(body.lead || "").slice(0, 40) };
     board.projects.push(project);
-    await hub.audit(who.pubkey, "🗂️", `Added ${project.name} to the Project Board`);
+    await hub.audit(who.pubkey, "server", `Added ${project.name} to the Project Board`);
     sendJson(res, 201, project);
     return;
   }

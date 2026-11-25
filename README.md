@@ -112,3 +112,14 @@ node plugin/build.mjs    # plugin/src + plugin/art → plugin/dist
 
 MIT. Illustrations in `plugin/art/` are Open Peeps and Open Doodles by Pablo
 Stanley, CC0.
+
+## Demo
+
+`node plugin/build.mjs --demo` builds **Team Hub demo** (`plugin/demo-dist/`): the same
+pages on sample people and data, with Team Hub's real rules from `server/hub.js` running
+in memory inside Buzz. No server, bot or network is needed, and nothing is saved.
+A bar at the top previews the page as an Owner, Admin, Member or Guest, and resets it.
+
+The `demo` branch holds just the built demo, so Buzz can install it:
+**Settings → Plugins → Manage plugins → From a Git repository**, this repository's URL,
+branch `demo`. It installs as a separate plugin (`northstar.team-hub-demo`).

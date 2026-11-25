@@ -76,7 +76,7 @@ export function createHub({ auth, sessions, store, ownerPubkeys = [], version = 
     });
   const nameOf = (pubkey) => d().people[pubkey]?.name || `${pubkey.slice(0, 8)}…`;
   const isBlocked = async (pubkey) => Boolean(d().people[pubkey]?.blocked) || (roleOf(pubkey) === undefined && !owners.has(pubkey));
-  const onSignIn = (pubkey) => audit(pubkey, "🔑", "Signed in with a Buzz code");
+  const onSignIn = (pubkey) => audit(pubkey, "key-round", "Signed in with a Buzz code");
 
   const pluginView = (id, p) => ({
     id, ...p,
@@ -118,7 +118,7 @@ export function createHub({ auth, sessions, store, ownerPubkeys = [], version = 
         pluginsInUse: plugins.filter((p) => p.state === "approved").length,
         updatesReady: plugins.filter((p) => p.update).length,
         topAgents: agents.slice(0, 5),
-        lately: d().audit.filter((a) => !/Signed in|wrong codes/.test(a.what)).slice(0, 6).map((a) => ({ at: a.at, icon: a.icon, text: `${nameOf(a.who)} ${a.what.charAt(0).toLowerCase()}${a.what.slice(1)}` })),
+        lately: d().audit.filter((a) => !/Signed in|wrong codes/.test(a.what)).slice(0, 6).map((a) => ({ at: a.at, icon: a.icon, text: a.who === "system" ? a.what : `${nameOf(a.who)} ${a.what.charAt(0).toLowerCase()}${a.what.slice(1)}` })),
       }];
     }],
 
@@ -137,14 +137,14 @@ export function createHub({ auth, sessions, store, ownerPubkeys = [], version = 
       if (role === "Admin" && roleOf(who.pubkey) !== "Owner") return [403, { error: "Only an owner can make someone an admin." }];
       const until = role === "Guest" ? (Number.isFinite(body.until) ? body.until : now() + 7 * DAY) : null;
       await store.update((x) => { x.people[pk] = { ...(x.people[pk] || {}), role, until, blocked: false }; });
-      await audit(who.pubkey, "🛡️", `Made ${nameOf(pk)} ${role === "Admin" ? "an" : "a"} ${role}${until ? ` until ${new Date(until).toDateString()}` : ""}`);
+      await audit(who.pubkey, "shield", `Made ${nameOf(pk)} ${role === "Admin" ? "an" : "a"} ${role}${until ? ` until ${new Date(until).toDateString()}` : ""}`);
       return [200, { ok: true, role, until }];
     }],
     ["POST", /^\/api\/members\/([0-9a-f]{64})\/remove$/, "members", async (who, _b, [, pk]) => {
       if (owners.has(pk)) return [400, { error: "Owners can't be removed here." }];
       await store.update((x) => { x.people[pk] = { ...(x.people[pk] || {}), blocked: true }; });
       await sessions.revokePubkey(pk);
-      await audit(who.pubkey, "🚪", `Removed ${nameOf(pk)} and signed them out`);
+      await audit(who.pubkey, "log-out", `Removed ${nameOf(pk)} and signed them out`);
       return [200, { ok: true, note: "Also remove them from the access channel in Buzz." }];
     }],
 
@@ -158,7 +158,7 @@ export function createHub({ auth, sessions, store, ownerPubkeys = [], version = 
       if (role === "Owner") return [400, { error: "Owners can always do everything." }];
       if (permission === "servers" && roleOf(who.pubkey) !== "Owner") return [403, { error: "Only an owner can change who manages servers." }];
       await store.update((x) => { x.permissions[permission] = { ...(x.permissions[permission] || {}), [role]: on }; });
-      await audit(who.pubkey, "🛡️", `${on ? "Allowed" : "Stopped"} ${role}s: ${PERMISSIONS[permission].label.toLowerCase()}`);
+      await audit(who.pubkey, "shield", `${on ? "Allowed" : "Stopped"} ${role}s: ${PERMISSIONS[permission].label.toLowerCase()}`);
       return [200, { ok: true }];
     }],
 
@@ -171,14 +171,14 @@ export function createHub({ auth, sessions, store, ownerPubkeys = [], version = 
       if (!ID.test(id || "") || !name || !repo) return [400, { error: "Send { id, name, repo } at least." }];
       if (d().plugins[id]) return [409, { error: "That plugin is already listed." }];
       await store.update((x) => { x.plugins[id] = { name: String(name).slice(0, 80), repo: String(repo).slice(0, 300), version: String(v || "").slice(0, 30), publisher: String(publisher || "").slice(0, 80), signedBy: signedBy || null, description: String(description || "").slice(0, 300), level: "Members", state: "review", submittedBy: who.pubkey }; });
-      await audit(who.pubkey, "🧩", `Submitted ${name} for review`);
+      await audit(who.pubkey, "puzzle", `Submitted ${name} for review`);
       return [201, { ok: true }];
     }],
     ["PUT", /^\/api\/plugins\/([a-z0-9][a-z0-9._-]*)$/, "members", async (who, body, [, id]) => {
       if (!d().plugins[id]) return [404, { error: "No such plugin." }];
       if (!LEVELS.includes(body?.level)) return [400, { error: "Level must be Everyone, Members or Admins." }];
       await store.update((x) => { x.plugins[id].level = body.level; });
-      await audit(who.pubkey, "🧩", `Set ${d().plugins[id].name} to ${body.level === "Everyone" ? "everyone" : body.level.toLowerCase() + " and up"}`);
+      await audit(who.pubkey, "puzzle", `Set ${d().plugins[id].name} to ${body.level === "Everyone" ? "everyone" : body.level.toLowerCase() + " and up"}`);
       return [200, { ok: true }];
     }],
     ["POST", /^\/api\/plugins\/([a-z0-9][a-z0-9._-]*)\/(approve|reject|rollout)$/, "members", async (who, _b, [, id, action]) => {
@@ -191,7 +191,7 @@ export function createHub({ auth, sessions, store, ownerPubkeys = [], version = 
         if (action === "reject") q.state = "rejected";
         if (action === "rollout") { q.version = q.update.version; q.signedBy = q.update.signedBy ?? q.signedBy; delete q.update; }
       });
-      await audit(who.pubkey, action === "reject" ? "✋" : "✅", `${action === "approve" ? "Approved" : action === "reject" ? "Rejected" : "Rolled out"} ${p.name}${action === "rollout" ? " " + d().plugins[id].version : ""}`);
+      await audit(who.pubkey, action === "reject" ? "hand" : "circle-check", `${action === "approve" ? "Approved" : action === "reject" ? "Rejected" : "Rolled out"} ${p.name}${action === "rollout" ? " " + d().plugins[id].version : ""}`);
       return [200, { ok: true }];
     }],
     ["GET", /^\/api\/plugin-trust$/, "install", async () => [200, {
@@ -199,7 +199,7 @@ export function createHub({ auth, sessions, store, ownerPubkeys = [], version = 
       version: 1, publishers: d().trustedPublishers.map((key) => ({ key })),
     }]],
 
-    ["GET", /^\/api\/requests$/, "approve", async () => [200, { requests: d().requests.filter((r) => r.state === "open").map((r) => ({ ...r, name: nameOf(r.from) })) }]],
+    ["GET", /^\/api\/requests$/, "approve", async () => [200, { requests: d().requests.filter((r) => r.state === "open").map((r) => ({ ...r, name: nameOf(r.from), targetName: r.kind === "plugin" ? d().plugins[r.target]?.name || r.target : r.target })) }]],
     ["POST", /^\/api\/requests$/, null, async (who, body) => {
       const kind = body?.kind;
       if (!["role", "plugin", "join"].includes(kind)) return [400, { error: "kind must be role, plugin or join." }];
@@ -218,7 +218,7 @@ export function createHub({ auth, sessions, store, ownerPubkeys = [], version = 
         if (action === "approve" && q.kind === "role" && ["Member", "Guest"].includes(q.target)) x.people[q.from] = { ...(x.people[q.from] || {}), role: q.target, until: q.target === "Guest" ? now() + 7 * DAY : null };
         if (action === "approve" && q.kind === "plugin" && x.plugins[q.target]) x.plugins[q.target].level = "Members";
       });
-      await audit(who.pubkey, action === "approve" ? "✅" : "✋", `${action === "approve" ? "Approved" : "Dismissed"} ${nameOf(r.from)}'s request${r.target ? ` (${r.target})` : ""}`);
+      await audit(who.pubkey, action === "approve" ? "circle-check" : "hand", `${action === "approve" ? "Approved" : "Dismissed"} ${nameOf(r.from)}'s request${r.target ? ` (${r.target})` : ""}`);
       return [200, { ok: true, note: r.kind === "join" && action === "approve" ? "Add them to the access channel in Buzz to finish." : undefined }];
     }],
 
@@ -244,7 +244,7 @@ export function createHub({ auth, sessions, store, ownerPubkeys = [], version = 
     }],
     ["POST", /^\/api\/sessions\/revoke-all$/, "servers", async (who) => {
       await sessions.revokeAll?.();
-      await audit(who.pubkey, "🚪", "Signed everyone out");
+      await audit(who.pubkey, "log-out", "Signed everyone out");
       return [200, { ok: true }];
     }],
   ];

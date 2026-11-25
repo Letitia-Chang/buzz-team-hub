@@ -4,9 +4,9 @@
 // Every page asks the server, which checks your role on every request; the
 // page only hides what you can't do so it doesn't tease you with it.
 
-export const inject = ["react", "pages", "relay", "host"];
+export const inject = DEMO ? ["react", "pages", "relay"] : ["react", "pages", "relay", "host"];
 
-const STORE = "northstar.team-hub.session:v1";
+const STORE = DEMO ? "northstar.team-hub-demo.session" : "northstar.team-hub.session:v1";
 const SHARE_KEY = "northstar.team-hub.share-stats";
 const CODE_IN_DM = /sign-in code is (\d{3})-(\d{3})/;
 // Agent Access 4.1+ stores its state under the new name; older versions used the first.
@@ -17,6 +17,13 @@ const PAGES = [
   ["plugins", "puzzle", "Plugins", null], ["data", "server", "Data & servers", null], ["requests", "inbox", "Requests", "approve"], ["audit", "scroll-text", "Audit log", "audit"],
 ];
 const ROLE_COLORS = { Owner: ["var(--affordance-prominent)", "var(--text-inverse)"], Admin: [SKY, ON_SKY], Member: ["var(--surface-inset)", "var(--text-standard)"], Guest: ["#EBE0C6", "#6E5424"], Ended: ["var(--surface-inset)", "var(--text-subtle)"] };
+
+// Audit entries name a Lucide icon; entries saved by Team Hub 1.0 used emoji.
+const OLD_AUDIT_ICONS = { "🔑": "key-round", "🚪": "log-out", "🛡️": "shield", "🧩": "puzzle", "✅": "circle-check", "✋": "hand", "🗂️": "server", "👋": "hand" };
+function AuditIcon({ h, icon }) {
+  const name = ICONS[icon] ? icon : OLD_AUDIT_ICONS[icon] || "circle-check";
+  return h(Icon, { h, name, style: { color: T.subtle, marginTop: 2 } });
+}
 
 function RoleChip({ h, role, children }) {
   const [bg, fg] = ROLE_COLORS[role] || ROLE_COLORS.Member;
@@ -29,6 +36,7 @@ export function apply(ctx) {
   const usedCodes = new Set();
 
   async function call(path, { method = "GET", body, token } = {}) {
+    if (DEMO) return DEMO_BACKEND.call(path, { method, body });
     const headers = { Accept: "application/json" };
     if (body) headers["Content-Type"] = "application/json";
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -92,7 +100,7 @@ export function apply(ctx) {
       let live = true;
       api("/api/me").then(({ status, data }) => { if (live && status === 200) setMe(data); }, (e) => live && setError(`Can't reach Team Hub's server: ${e.message}`));
       const myName = nameFrom(session, viewer);
-      if (myName) void api("/api/me", { method: "POST", body: { name: myName } }).catch(() => {});
+      if (myName && !DEMO) void api("/api/me", { method: "POST", body: { name: myName } }).catch(() => {});
       return () => { live = false; };
     }, [phase, token]);
 
@@ -104,7 +112,7 @@ export function apply(ctx) {
     }, [me]);
 
     const signOut = async () => { if (token) await call("/auth/logout", { method: "POST", token }).catch(() => {}); sessions.save(viewer, undefined); setToken(undefined); setMe(undefined); setPhase("signedOut"); };
-    const env = { h, React, ctx, api, me, viewer, session, flash, setPage, nameOf: (pk, fallback) => nameFrom(session, pk) || fallback || pk.slice(0, 8) + "…" };
+    const env = { h, React, ctx, api, me, viewer, session, flash, setPage, nameOf: (pk, fallback) => (DEMO && DEMO_BACKEND.nameFor(pk)) || nameFrom(session, pk) || fallback || pk.slice(0, 8) + "…" };
 
     if (!viewer) return h(Page, { h }, h(Sub, { h }, "Connecting to your community…"));
     if (phase !== "signedIn") return h(SignIn, { ...env, phase, setPhase, setToken, error, setError });
@@ -118,7 +126,7 @@ export function apply(ctx) {
           h("span", { "aria-hidden": true, style: { width: 30, height: 30, borderRadius: 8, background: T.inset, display: "inline-flex", alignItems: "center", justifyContent: "center", color: T.text } }, h(Icon, { h, name: "compass", size: 18 })),
           h("div", null, h("h1", { style: { margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" } }, "Team Hub"), h("span", { style: { fontSize: 12, color: T.meta } }, TEAM_NAME))),
         h("div", { style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" } },
-          h(Avatar, { h, name: me.name || env.nameOf(viewer) }), h("span", { style: { fontSize: 14, fontWeight: 600 } }, env.nameOf(viewer, me.name)), h(RoleChip, { h, role: me.role }),
+          h(Avatar, { h, name: env.nameOf(me.pubkey, me.name) }), h("span", { style: { fontSize: 14, fontWeight: 600 } }, env.nameOf(me.pubkey, me.name)), h(RoleChip, { h, role: me.role }),
           h(Btn, { h, onClick: signOut }, "Sign out"))),
       h("nav", { "aria-label": "Team Hub sections", style: { display: "flex", gap: 2, overflowX: "auto", borderBottom: `1px solid ${T.border}` } },
         allowedPages.map(([id, icon, label]) => h("button", { key: id, type: "button", "aria-current": current === id ? "page" : undefined, onClick: () => setPage(id),
@@ -147,8 +155,14 @@ export function apply(ctx) {
         else setError(data.error || `Sign-in failed (${status}).`);
       } catch (e) { setError(`Can't reach the server: ${e.message}`); } finally { setBusy(false); }
     }, [viewer]);
+    // Demo: the "DM" arrives after a moment, and the page fills the code in as it would for real.
     React.useEffect(() => {
-      if (phase !== "codeSent" || !session?.observe) return;
+      if (!DEMO || phase !== "codeSent") return;
+      const t = setTimeout(() => { const c = DEMO_BACKEND.lastCode; setCode(c); void verify(c); }, 1600);
+      return () => clearTimeout(t);
+    }, [phase, verify]);
+    React.useEffect(() => {
+      if (DEMO || phase !== "codeSent" || !session?.observe) return;
       const since = Math.floor(sentAt.current / 1000) - 5;
       const view = session.observe([{ kinds: [9], authors: [BOT_PUBKEY], since, limit: 5 }]);
       let done = false;
@@ -248,7 +262,7 @@ export function apply(ctx) {
               h(Toggle, { h, ui: ctx.reflect?.get?.("ui"), on: share, onChange: toggleShare, label: "Share my Agent Access counts" }))),
           h(Card, { h, style: { padding: 18, display: "flex", flexDirection: "column", gap: 4 } },
             h(H2, { h }, "Lately"),
-            d.lately.length ? d.lately.map((f, i) => h("div", { key: i, style: { display: "flex", gap: 10, padding: "8px 0", borderTop: i ? `1px solid ${T.border}` : 0, fontSize: 14 } }, h("span", { "aria-hidden": true }, f.icon), h("span", { style: { flex: 1 } }, f.text), h("span", { style: { color: T.meta, fontSize: 13, whiteSpace: "nowrap" } }, timeLabel(f.at))))
+            d.lately.length ? d.lately.map((f, i) => h("div", { key: i, style: { display: "flex", gap: 10, padding: "8px 0", borderTop: i ? `1px solid ${T.border}` : 0, fontSize: 14 } }, h(AuditIcon, { h, icon: f.icon }), h("span", { style: { flex: 1 } }, f.text), h("span", { style: { color: T.meta, fontSize: 13, whiteSpace: "nowrap" } }, timeLabel(f.at))))
               : h(Sub, { h }, "Nothing yet."))),
         h(ServerLine, { h, api, onDetails: me.permissions.servers ? () => setPage("data") : undefined })));
   }
@@ -276,7 +290,7 @@ export function apply(ctx) {
         h("div", { style: { flex: "999 1 300px", display: "flex", flexDirection: "column", gap: 8 } },
           h(H2, { h }, "Add them to the access channel in Buzz"),
           h(Sub, { h }, "That private channel is the guest list. Anyone in it can sign in as a Member. Take them out of it and they're signed out within 5 minutes."),
-          h("div", null, h(Btn, { h, onClick: async () => { try { await (ctx.host.writeClipboardText ? ctx.host.writeClipboardText(inviteText) : navigator.clipboard.writeText(inviteText)); flash("Invite message copied"); } catch { flash("Couldn't copy"); } } }, h(Icon, { h, name: "copy" }), "Copy an invite message")))),
+          h("div", null, h(Btn, { h, onClick: async () => { try { await (ctx.host?.writeClipboardText ? ctx.host.writeClipboardText(inviteText) : navigator.clipboard.writeText(inviteText)); flash("Invite message copied"); } catch { flash("Couldn't copy"); } } }, h(Icon, { h, name: "copy" }), "Copy an invite message")))),
       !state.data ? h(Loading, { h, state }) : h(Card, { h, style: { overflow: "hidden" } },
         state.data.members.map((m, i) => {
           const locked = !canManage || m.role === "Owner" || m.role === "Ended";
@@ -319,7 +333,7 @@ export function apply(ctx) {
     const canManage = me.permissions.members;
     const act = async (id, action, done) => { const r = await api(`/api/plugins/${id}/${action}`, { method: "POST" }); flash(r.status === 200 ? done : r.data.error); void reload(); };
     const setLevel = async (id, level) => { const r = await api(`/api/plugins/${id}`, { method: "PUT", body: { level } }); if (r.status !== 200) flash(r.data.error); void reload(); };
-    const copyTrust = async () => { const r = await api("/api/plugin-trust"); try { const text = JSON.stringify(r.data, null, 2); await (ctx.host.writeClipboardText ? ctx.host.writeClipboardText(text) : navigator.clipboard.writeText(text)); flash("Trust file copied. Save it as plugin-trust.json and run `buzzodz plugin trust`."); } catch { flash("Couldn't copy"); } };
+    const copyTrust = async () => { const r = await api("/api/plugin-trust"); try { const text = JSON.stringify(r.data, null, 2); await (ctx.host?.writeClipboardText ? ctx.host.writeClipboardText(text) : navigator.clipboard.writeText(text)); flash("Trust file copied. Save it as plugin-trust.json and run `buzzodz plugin trust`."); } catch { flash("Couldn't copy"); } };
     const stateLabel = (p) => p.state === "review" ? ["Waiting for review", T.warn] : p.state === "rejected" ? ["Rejected", T.danger] : p.update ? [`Update ready: ${p.update.version}`, T.warn] : ["Approved · up to date", T.ok];
     return h(React.Fragment, null,
       h(Title, { h, kicker: "Plugins", title: "Team plugins", sub: "Approved here, installed from Buzz. Each plugin checks your role before it shows anything.", action: h(Btn, { h, onClick: copyTrust }, "Copy trust file") }),
@@ -369,7 +383,7 @@ export function apply(ctx) {
   function Requests({ h, api, flash, nameOf }) {
     const [state, reload] = useApi(api, "/api/requests");
     const act = async (r, action) => { const res = await api(`/api/requests/${r.id}/${action}`, { method: "POST" }); flash(res.status === 200 ? (res.data.note || (action === "approve" ? "Approved" : "Dismissed")) : res.data.error); void reload(); };
-    const what = (r) => r.kind === "role" ? `wants to be a ${r.target}` : r.kind === "plugin" ? `wants to use ${r.target}` : "asked to join Team Hub";
+    const what = (r) => r.kind === "role" ? `wants to be a ${r.target}` : r.kind === "plugin" ? `wants to use ${r.targetName || r.target}` : "asked to join Team Hub";
     return h(React.Fragment, null,
       h(Title, { h, kicker: "Requests", title: "Waiting for a yes" }),
       !state.data ? h(Loading, { h, state }) : state.data.requests.length
@@ -386,9 +400,27 @@ export function apply(ctx) {
       h(Title, { h, kicker: "Audit log", title: "Every change, in order", sub: "Kept for 90 days on the office server: sign-ins, roles, plugins and settings. Nothing from your Buzz messages." }),
       !state.data ? h(Loading, { h, state }) : h(Card, { h, style: { overflow: "hidden" } },
         state.data.entries.length ? state.data.entries.map((a, i) => h("div", { key: i, style: { display: "flex", flexWrap: "wrap", gap: "4px 16px", padding: "10px 14px", borderTop: i ? `1px solid ${T.border}` : 0, fontSize: 14 } },
-          h("span", { style: { flex: "0 0 90px", color: T.subtle, fontVariantNumeric: "tabular-nums" } }, timeLabel(a.at)), h("strong", { style: { flex: "0 0 160px" } }, a.name), h("span", { style: { flex: "1 1 260px" } }, `${a.icon} ${a.what}`)))
+          h("span", { style: { flex: "0 0 90px", color: T.subtle, fontVariantNumeric: "tabular-nums" } }, timeLabel(a.at)), h("strong", { style: { flex: "0 0 160px" } }, a.name), h("span", { style: { flex: "1 1 260px", display: "inline-flex", alignItems: "center", gap: 8 } }, h(AuditIcon, { h, icon: a.icon }), a.what)))
           : h("div", { style: { padding: 18 } }, h(Sub, { h }, "Nothing yet."))));
   }
 
-  ctx.pages.register({ id: "main", title: "Team Hub", primary: true, placement: "dock", layout: "workspace", icon: iconDataUrl("compass"), component: TeamHub });
+  /** Demo only: a banner to preview each role, and a reset. */
+  function DemoShell() {
+    const [role, setRole] = React.useState(DEMO_BACKEND.persona);
+    const [run, setRun] = React.useState(0);
+    const pick = (r) => { DEMO_BACKEND.setPersona(r); setRole(r); };
+    const reset = () => { DEMO_BACKEND.reset(); try { localStorage.removeItem(STORE); } catch {} setRole("Owner"); setRun(run + 1); };
+    return h("div", { style: { height: "100%", display: "flex", flexDirection: "column" } },
+      h("div", { role: "region", "aria-label": "Demo controls", style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 14px", padding: "10px clamp(16px, 4vw, 48px)", background: T.inset, borderBottom: `1px solid ${T.border}`, fontSize: 13 } },
+        h(Icon, { h, name: "info", style: { color: T.subtle } }),
+        h("span", { style: { color: T.subtle, flex: "1 1 260px" } }, h("strong", { style: { color: T.text } }, "Demo. "), "Sample people and data, all in Buzz. Nothing is saved or sent."),
+        h("span", { style: { display: "inline-flex", alignItems: "center", gap: 6 } }, h(Icon, { h, name: "eye", style: { color: T.subtle } }), "Preview as"),
+        h("div", { role: "group", "aria-label": "Preview as", style: { display: "inline-flex", gap: 4 } },
+          ["Owner", "Admin", "Member", "Guest"].map((r) => h("button", { key: r, type: "button", "aria-pressed": role === r, onClick: () => pick(r),
+            style: { height: 28, padding: "0 10px", borderRadius: 999, border: `1px solid ${role === r ? T.primary : T.border}`, background: role === r ? T.primary : T.panel, color: role === r ? T.onPrimary : T.text, font: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer" } }, r))),
+        h(Btn, { h, onClick: reset }, h(Icon, { h, name: "rotate-ccw" }), "Reset demo")),
+      h("div", { style: { flex: 1, minHeight: 0 } }, h(TeamHub, { key: role + ":" + run })));
+  }
+
+  ctx.pages.register({ id: "main", title: DEMO ? "Team Hub demo" : "Team Hub", primary: true, placement: "dock", layout: "workspace", icon: iconDataUrl("compass"), component: DEMO ? DemoShell : TeamHub });
 }
