@@ -30,6 +30,7 @@ const ICONS = {
   "eye":"<path d=\"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0\" /><circle cx=\"12\" cy=\"12\" r=\"3\" />",
   "rotate-ccw":"<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\" /><path d=\"M3 3v5h5\" />",
   "info":"<circle cx=\"12\" cy=\"12\" r=\"10\" /><path d=\"M12 16v-4\" /><path d=\"M12 8h.01\" />",
+  "user-plus":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\" /><circle cx=\"9\" cy=\"7\" r=\"4\" /><line x1=\"19\" x2=\"19\" y1=\"8\" y2=\"14\" /><line x1=\"22\" x2=\"16\" y1=\"11\" y2=\"11\" />",
 };
 /** A single-colour line icon that takes the colour of the text around it. */
 function svgIcon(createElement, name, { size = 16, strokeWidth = 1.75, style } = {}) {
@@ -161,7 +162,7 @@ const AGENT_ACCESS_STATE = "letitia.agent-access:state";
 const AGENT_ACCESS_STATE_OLD = "letitia.teammate-access:state";
 const PAGES = [
   ["home", "house", "Home", "dash"], ["members", "users", "Members", null], ["roles", "shield", "Roles & permissions", null],
-  ["plugins", "puzzle", "Plugins", null], ["data", "server", "Data & servers", null], ["requests", "inbox", "Requests", "approve"], ["audit", "scroll-text", "Audit log", "audit"],
+  ["plugins", "puzzle", "Plugins", null], ["requests", "inbox", "Requests", "approve"], ["audit", "scroll-text", "Audit log", "audit"],
 ];
 const ROLE_COLORS = { Owner: ["var(--affordance-prominent)", "var(--text-inverse)"], Admin: [SKY, ON_SKY], Member: ["var(--surface-inset)", "var(--text-standard)"], Guest: ["#EBE0C6", "#6E5424"], Ended: ["var(--surface-inset)", "var(--text-subtle)"] };
 
@@ -171,6 +172,9 @@ function AuditIcon({ h, icon }) {
   const name = ICONS[icon] ? icon : OLD_AUDIT_ICONS[icon] || "circle-check";
   return h(Icon, { h, name, style: { color: T.subtle, marginTop: 2 } });
 }
+
+// Who can use an approved plugin. Roles rank Owner > Admin > Member > Guest.
+const LEVEL_LABELS = { Everyone: "Everyone, guests too", Members: "Members, admins and owners", Admins: "Admins and owners" };
 
 function RoleChip({ h, role, children }) {
   const [bg, fg] = ROLE_COLORS[role] || ROLE_COLORS.Member;
@@ -283,7 +287,6 @@ export function apply(ctx) {
       current === "members" && h(Members, env),
       current === "roles" && h(Roles, env),
       current === "plugins" && h(Plugins, env),
-      current === "data" && h(Data, env),
       current === "requests" && h(Requests, env),
       current === "audit" && h(Audit, env),
       toast && h("div", { role: "status", style: { position: "sticky", bottom: 16, alignSelf: "center", padding: "10px 16px", borderRadius: 10, background: T.primary, color: T.onPrimary, fontWeight: 600, fontSize: 14 } }, toast));
@@ -302,12 +305,15 @@ export function apply(ctx) {
         else setError(data.error || `Sign-in failed (${status}).`);
       } catch (e) { setError(`Can't reach the server: ${e.message}`); } finally { setBusy(false); }
     }, [viewer]);
-    // Demo: the "DM" arrives after a moment, and the page fills the code in as it would for real.
+    // Demo: the bot's DM arrives after a moment and you type the code yourself.
+    const [demoDm, setDemoDm] = React.useState("");
+    const codeInput = React.useRef(null);
     React.useEffect(() => {
-      if (!DEMO || phase !== "codeSent") return;
-      const t = setTimeout(() => { const c = DEMO_BACKEND.lastCode; setCode(c); void verify(c); }, 1600);
+      if (!DEMO || phase !== "codeSent") { setDemoDm(""); return; }
+      setDemoDm("");
+      const t = setTimeout(() => { const c = DEMO_BACKEND.lastCode; setDemoDm(`${c.slice(0, 3)}-${c.slice(3)}`); codeInput.current?.focus?.(); }, 1500);
       return () => clearTimeout(t);
-    }, [phase, verify]);
+    }, [phase, DEMO && DEMO_BACKEND.lastCode]);
     React.useEffect(() => {
       if (DEMO || phase !== "codeSent" || !session?.observe) return;
       const since = Math.floor(sentAt.current / 1000) - 5;
@@ -338,13 +344,18 @@ export function apply(ctx) {
         h("div", { style: { flex: "1 1 340px", maxWidth: 440, display: "flex", flexDirection: "column", gap: 16 } },
           h("span", { style: { display: "inline-flex", alignItems: "center", gap: 10, fontWeight: 700 } }, h(Icon, { h, name: "compass", size: 18 }), "Team Hub · ", TEAM_NAME),
           h("p", { style: { margin: 0, fontSize: 38, lineHeight: 1.08, fontWeight: 800, letterSpacing: "-0.035em" } }, "Sign in with ", h("span", { style: { background: `linear-gradient(transparent 70%, ${YELLOW} 70%, ${YELLOW} 95%, transparent 95%)` } }, "Buzz"), "."),
-          h(Sub, { h, style: { fontSize: 16 } }, "No passwords. We send a one-time code to your Buzz DMs, and this page fills it in for you."),
+          h(Sub, { h, style: { fontSize: 16 } }, DEMO ? "No passwords. We send a one-time code to your Buzz DMs, and you enter it here." : "No passwords. We send a one-time code to your Buzz DMs, and this page fills it in for you."),
           h(Card, { h, style: { padding: 20, display: "flex", flexDirection: "column", gap: 12 } },
             phase === "codeSent"
               ? h(React.Fragment, null,
                   h("p", { style: { margin: 0, fontSize: 15, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } }, h(Icon, { h, name: "mail" }), h("span", null, "Check your Buzz DMs from ", h("strong", null, "Project Board bot"), ".")),
+                  DEMO && h("div", { "aria-live": "polite", style: { display: "flex", gap: 10, padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.border}`, background: T.inset } },
+                    h("span", { "aria-hidden": true, style: { width: 32, height: 32, flex: "0 0 32px", borderRadius: 8, background: SKY, color: ON_SKY, display: "inline-flex", alignItems: "center", justifyContent: "center" } }, h(Icon, { h, name: "bot", size: 18 })),
+                    h("div", { style: { minWidth: 0 } },
+                      h("div", { style: { fontSize: 13 } }, h("strong", null, "Project Board bot"), h("span", { style: { color: T.meta } }, demoDm ? " · direct message · just now" : " · sending…")),
+                      h("p", { style: { margin: "2px 0 0", fontSize: 14 } }, demoDm ? h(React.Fragment, null, "Your Team Hub sign-in code is ", h("strong", { style: { fontVariantNumeric: "tabular-nums" } }, demoDm), ". It works once and expires in 10 minutes. If you didn't ask to sign in, ignore this message.") : "…"))),
                   h("div", { "aria-label": "One-time code", style: { display: "flex", gap: 8 } }, [0, 1, 2, 3, 4, 5].map((i) => h("span", { key: i, style: { width: 42, height: 50, borderRadius: 8, border: `1.5px solid ${digits[i] ? INK : T.prominent}`, background: digits[i] ? T.subtleBg : T.panel, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800 } }, digits[i] || ""))),
-                  h("input", { inputMode: "numeric", autoComplete: "one-time-code", maxLength: 7, value: code, onChange: (e) => setCode(e.target.value), "aria-label": "Or type the code", placeholder: "Or type the code", style: { height: 38, padding: "0 12px", borderRadius: 8, border: `1px solid ${T.prominent}`, background: T.panel, color: T.text, font: "inherit", letterSpacing: "0.2em", maxWidth: 200 } }),
+                  h("input", { ref: codeInput, inputMode: "numeric", autoComplete: "one-time-code", maxLength: 7, value: code, onChange: (e) => setCode(e.target.value), onKeyDown: (e) => { if (e.key === "Enter" && digits.length === 6 && !busy) void verify(digits); }, "aria-label": DEMO ? "Type the code" : "Or type the code", placeholder: DEMO ? "Type the 6-digit code" : "Or type the code", style: { height: 38, padding: "0 12px", borderRadius: 8, border: `1px solid ${T.prominent}`, background: T.panel, color: T.text, font: "inherit", letterSpacing: "0.2em", maxWidth: 200 } }),
                   h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
                     h(Btn, { h, kind: "primary", disabled: busy || digits.length !== 6, onClick: () => verify(digits) }, busy ? "Checking…" : "Continue"),
                     h(Btn, { h, disabled: busy, onClick: requestCode }, "Send a new code")),
@@ -410,18 +421,10 @@ export function apply(ctx) {
           h(Card, { h, style: { padding: 18, display: "flex", flexDirection: "column", gap: 4 } },
             h(H2, { h }, "Lately"),
             d.lately.length ? d.lately.map((f, i) => h("div", { key: i, style: { display: "flex", gap: 10, padding: "8px 0", borderTop: i ? `1px solid ${T.border}` : 0, fontSize: 14 } }, h(AuditIcon, { h, icon: f.icon }), h("span", { style: { flex: 1 } }, f.text), h("span", { style: { color: T.meta, fontSize: 13, whiteSpace: "nowrap" } }, timeLabel(f.at))))
-              : h(Sub, { h }, "Nothing yet."))),
-        h(ServerLine, { h, api, onDetails: me.permissions.servers ? () => setPage("data") : undefined })));
+              : h(Sub, { h }, "Nothing yet.")))));
   }
 
-  function ServerLine({ h, api, onDetails }) {
-    const [state] = useApi(api, "/api/health");
-    const ok = state.data?.ok;
-    return h(Card, { h, style: { padding: "14px 16px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 } },
-      h("span", { style: { width: 10, height: 10, borderRadius: "50%", background: state.loading ? "var(--status-offline)" : ok ? T.online : RED } }),
-      h("p", { style: { margin: 0, flex: "999 1 260px", fontSize: 14 } }, h("strong", null, state.loading ? "Checking the office server…" : ok ? "The office server is online" : "Can't reach the office server"), ok ? h("span", { style: { color: T.subtle } }, ` · up ${Math.round(state.data.uptimeSeconds / 3600)}h`) : null),
-      onDetails ? h(Btn, { h, onClick: onDetails }, "Details") : null);
-  }
+
 
   function Members({ h, api, me, flash, nameOf }) {
     const [state, reload] = useApi(api, "/api/members");
@@ -431,7 +434,7 @@ export function apply(ctx) {
     const remove = async (m) => { const r = await api(`/api/members/${m.pubkey}/remove`, { method: "POST" }); flash(r.status === 200 ? `${nameOf(m.pubkey, m.name)} was signed out. Also remove them from the access channel in Buzz.` : r.data.error); void reload(); };
     const inviteText = `You're invited to ${TEAM_NAME}'s Team Hub. Install the Team Hub plugin in Buzz, open it, and press "Send me a code".`;
     return h(React.Fragment, null,
-      h(Title, { h, kicker: "Members", title: "Who's on the team", action: canManage ? h(Btn, { h, kind: "primary", onClick: () => setInvite(!invite) }, "＋ Add someone") : undefined }),
+      h(Title, { h, kicker: "Members", title: "Who's on the team", action: canManage ? h(Btn, { h, kind: "primary", onClick: () => setInvite(!invite) }, h(Icon, { h, name: "user-plus" }), "Add someone") : undefined }),
       invite && h(Card, { h, style: { padding: 18, display: "flex", flexWrap: "wrap", alignItems: "center", gap: "16px 24px", borderColor: T.focus } },
         h(Paper, { h, art: "s_point", style: { width: 110, height: 110, border: 0 } }),
         h("div", { style: { flex: "999 1 300px", display: "flex", flexDirection: "column", gap: 8 } },
@@ -451,7 +454,10 @@ export function apply(ctx) {
               { label: "Remove from Team Hub", danger: true, onSelect: () => remove(m) },
             ] }));
         })),
-      h(Sub, { h }, "Membership is checked against the access channel every 5 minutes. Guests' access ends on the date shown."));
+      h(Sub, { h }, "Membership is checked against the access channel every 5 minutes. Guests' access ends on the date shown."),
+      me.permissions.servers ? h("div", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, paddingTop: 8, borderTop: `1px solid ${T.border}` } },
+        h(Sub, { h, style: { flex: "999 1 260px" } }, "Signs everyone out of Team Hub, including you. Use it if a device is lost or someone left in a hurry. Everyone signs in again with a new code."),
+        h(Btn, { h, kind: "danger", onClick: async () => { const r = await api("/api/sessions/revoke-all", { method: "POST" }); if (r.status === 200) flash("Everyone, including you, was signed out"); } }, "Sign everyone out")) : null);
   }
 
   function Roles({ h, api, me, flash }) {
@@ -493,8 +499,8 @@ export function apply(ctx) {
               p.verified ? h(Chip, { h, bg: T.okBg, color: T.ok }, h(Icon, { h, name: "check", size: 13 }), "Verified") : h(Chip, { h, bg: T.warnBg, color: T.warn }, "Not verified")),
             p.description ? h(Sub, { h }, p.description) : null,
             h("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, h("span", { style: { fontSize: 13, fontWeight: 600 } }, "Who can use it after installing"),
-              canManage ? h(Pills, { h, label: "Who can use it", value: p.level, onChange: (l) => setLevel(p.id, l), options: [["Everyone", "Everyone"], ["Members", "Members and up"], ["Admins", "Admins and up"]] })
-                : h("span", { style: { fontSize: 14 } }, p.level === "Everyone" ? "Everyone" : `${p.level} and up`, p.state !== "approved" ? " · once it's approved" : p.canUse ? " · including you" : " · not you yet")),
+              canManage ? h(Pills, { h, label: "Who can use it", value: p.level, onChange: (l) => setLevel(p.id, l), options: Object.entries(LEVEL_LABELS) })
+                : h("span", { style: { fontSize: 14 } }, LEVEL_LABELS[p.level] || p.level, p.state !== "approved" ? " · once it's approved" : p.canUse ? " · including you" : " · not you yet")),
             h("div", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, paddingTop: 10, borderTop: `1px solid ${T.border}` } },
               h("span", { style: { fontSize: 13, fontWeight: 600, color } }, label), h("span", { style: { flex: 1 } }),
               canManage && p.state === "review" ? h(Btn, { h, kind: "sky", onClick: () => act(p.id, "approve", `${p.name} approved`) }, "Approve") : null,
@@ -505,27 +511,7 @@ export function apply(ctx) {
       h(Callout, { h, icon: "circle-check" }, h("strong", null, "Verified"), " means the release is signed by a publisher this team trusts. With the trust file, Buzz can refuse anything else."));
   }
 
-  function Data({ h, api, me, flash }) {
-    const [state, reload] = useApi(api, "/api/health");
-    const d = state.data;
-    const rows = [["Sign-in code lasts", "10 minutes"], ["Wrong tries before a pause", "5"], ["Stay signed in for", "14 days"], ["Check the access channel every", "5 minutes"]];
-    return h(React.Fragment, null,
-      h(Title, { h, kicker: "Data & servers", title: "Where the data lives" }),
-      h(Card, { h, style: { padding: 18, display: "flex", flexDirection: "column", gap: 12 } },
-        h("div", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 } }, h(Icon, { h, name: "server", size: 20 }), h(H2, { h }, "Office server"),
-          h(Chip, { h, bg: d?.ok ? T.okBg : T.dangerBg, color: d?.ok ? T.ok : T.danger }, state.loading ? "Checking…" : d?.ok ? "Online" : "Unreachable")),
-        h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 } },
-          [["Address", SERVER.replace("https://", "")], ["Reached through", "Cloudflare Tunnel → office machine"], ["Up for", d ? `${Math.floor(d.uptimeSeconds / 3600)}h ${Math.floor((d.uptimeSeconds % 3600) / 60)}m` : "…"], ["Version", d?.version || "…"]].map(([k, v]) =>
-            h("div", { key: k, style: { padding: 12, borderRadius: 8, background: T.inset } }, h(Kicker, { h }, k), h("p", { style: { margin: "4px 0 0", fontSize: 14, fontWeight: 600, wordBreak: "break-all" } }, v)))),
-        h("div", null, h(Btn, { h, onClick: async () => { const t0 = Date.now(); await reload(); flash(`Reached the office server in ${Date.now() - t0} ms`); } }, "Test connection"))),
-      h(Card, { h, style: { padding: 18, display: "flex", flexDirection: "column", gap: 8 } },
-        h("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, h(Icon, { h, name: "bot", size: 20 }), h(H2, { h }, "Project Board bot")),
-        h(Sub, { h }, "A separate Buzz account, so nobody's personal key sits on the server. It does two things: sends sign-in codes by DM, and reads who's in the access channel.")),
-      h(Card, { h, style: { padding: 18, display: "flex", flexDirection: "column", gap: 4 } },
-        h(H2, { h }, "Sign-in & sessions"),
-        rows.map(([k, v]) => h("div", { key: k, style: { display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 0", borderTop: `1px solid ${T.border}`, fontSize: 14 } }, h("span", null, k), h("strong", null, v))),
-        me.permissions.servers ? h("div", { style: { paddingTop: 10 } }, h(Btn, { h, kind: "danger", onClick: async () => { const r = await api("/api/sessions/revoke-all", { method: "POST" }); if (r.status === 200) flash("Everyone, including you, was signed out"); } }, "Sign everyone out")) : null));
-  }
+
 
   function Requests({ h, api, flash, nameOf }) {
     const [state, reload] = useApi(api, "/api/requests");

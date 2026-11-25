@@ -17,7 +17,7 @@ export const PERMISSIONS = {
   install: { label: "Use approved plugins", Owner: true, Admin: true, Member: true, Guest: false },
   approve: { label: "Answer requests", Owner: true, Admin: true, Member: false, Guest: false },
   members: { label: "Manage members, roles and plugins", Owner: true, Admin: true, Member: false, Guest: false },
-  servers: { label: "Manage servers and sign-in", Owner: true, Admin: false, Member: false, Guest: false },
+  servers: { label: "Sign everyone out", Owner: true, Admin: false, Member: false, Guest: false },
   audit: { label: "See the audit log", Owner: true, Admin: true, Member: false, Guest: false },
 };
 const LEVELS = ["Everyone", "Members", "Admins"];
@@ -156,7 +156,7 @@ export function createHub({ auth, sessions, store, ownerPubkeys = [], version = 
       const { permission, role, on } = body || {};
       if (!PERMISSIONS[permission] || !ROLES.includes(role) || typeof on !== "boolean") return [400, { error: "Send { permission, role, on }." }];
       if (role === "Owner") return [400, { error: "Owners can always do everything." }];
-      if (permission === "servers" && roleOf(who.pubkey) !== "Owner") return [403, { error: "Only an owner can change who manages servers." }];
+      if (permission === "servers" && roleOf(who.pubkey) !== "Owner") return [403, { error: "Only an owner can change who can sign everyone out." }];
       await store.update((x) => { x.permissions[permission] = { ...(x.permissions[permission] || {}), [role]: on }; });
       await audit(who.pubkey, "shield", `${on ? "Allowed" : "Stopped"} ${role}s: ${PERMISSIONS[permission].label.toLowerCase()}`);
       return [200, { ok: true }];
@@ -178,7 +178,7 @@ export function createHub({ auth, sessions, store, ownerPubkeys = [], version = 
       if (!d().plugins[id]) return [404, { error: "No such plugin." }];
       if (!LEVELS.includes(body?.level)) return [400, { error: "Level must be Everyone, Members or Admins." }];
       await store.update((x) => { x.plugins[id].level = body.level; });
-      await audit(who.pubkey, "puzzle", `Set ${d().plugins[id].name} to ${body.level === "Everyone" ? "everyone" : body.level.toLowerCase() + " and up"}`);
+      await audit(who.pubkey, "puzzle", `Set ${d().plugins[id].name} to ${{ Everyone: "everyone, guests too", Members: "members, admins and owners", Admins: "admins and owners" }[body.level]}`);
       return [200, { ok: true }];
     }],
     ["POST", /^\/api\/plugins\/([a-z0-9][a-z0-9._-]*)\/(approve|reject|rollout)$/, "members", async (who, _b, [, id, action]) => {

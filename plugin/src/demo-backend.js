@@ -9,7 +9,7 @@ function createDemoBackend() {
   const PEOPLE = {
     owner: { pubkey: key(0xa1), name: "Letitia Chang" },
     admin: { pubkey: key(0xb2), name: "James Harris" },
-    member: { pubkey: key(0xc3), name: "Anushka Rao" },
+    member: { pubkey: key(0xc3), name: "Anushka Jain" },
     member2: { pubkey: key(0xd4), name: "Mei Lin" },
     member3: { pubkey: key(0xe5), name: "Shingai Thornton" },
     guest: { pubkey: key(0xf6), name: "Omar Haddad" },
@@ -52,7 +52,7 @@ function createDemoBackend() {
         { at: now - 2 * 3600_000, who: PEOPLE.admin.pubkey, icon: "puzzle", what: "Updated Project Board to 2.3.0" },
         { at: now - 3 * 3600_000, who: PEOPLE.owner.pubkey, icon: "shield", what: "Made Omar Haddad a Guest until next week" },
         { at: now - 20 * 3600_000, who: PEOPLE.owner.pubkey, icon: "circle-check", what: "Approved Agent Access" },
-        { at: now - DAY - 3600_000, who: PEOPLE.admin.pubkey, icon: "shield", what: "Made Anushka Rao a Member" },
+        { at: now - DAY - 3600_000, who: PEOPLE.admin.pubkey, icon: "shield", what: "Made Anushka Jain a Member" },
         { at: now - 2 * DAY, who: "system", icon: "log-out", what: "Signed out Leo Grant (left the access channel)" },
         { at: now - 2 * DAY - 3600_000, who: PEOPLE.member.pubkey, icon: "key-round", what: "Signed in with a Buzz code" },
         { at: now - 3 * DAY, who: PEOPLE.owner.pubkey, icon: "puzzle", what: "Set Calendar Sync to admins and up" },
