@@ -1,8 +1,11 @@
-// Shared building blocks (same as Agent Access): host tokens + three accents.
-const SKY = "#8ED6F0";
-const INK = "#191918";
-const RED = "#D93036";
-const YELLOW = "#FFD84D";
+// Shared building blocks (same as Agent Access): host tokens + the "Ink & clay" accents
+// (navy ink, sage teal, ochre, clay), kept low-saturation so both plugins match.
+const SKY = "#24324A"; // navy accent for important buttons and selected states
+const ON_SKY = "#F4F2EA";
+const INK = "#1E2533";
+const RED = "#9A5641"; // clay
+const YELLOW = "#E3D3AE"; // ochre tint, used as a highlighter
+const SAGE = "#BFD2D0"; // sage tint, used as a highlighter
 const T = {
   text: "var(--text-standard)", subtle: "var(--text-subtle)", meta: "var(--text-metadata)",
   panel: "var(--surface-panel)", inset: "var(--surface-inset)", border: "var(--border-standard)",
@@ -28,7 +31,7 @@ const btnBase = { minHeight: 36, padding: "0 14px", borderRadius: 8, font: "inhe
 const BTN = {
   primary: { ...btnBase, border: `1px solid ${T.primary}`, background: T.primary, color: T.onPrimary },
   quiet: { ...btnBase, border: `1px solid ${T.border}`, background: T.panel, color: T.text },
-  sky: { ...btnBase, border: `1.5px solid ${INK}`, background: SKY, color: INK },
+  sky: { ...btnBase, border: `1px solid ${T.prominent}`, background: SKY, color: ON_SKY },
   danger: { ...btnBase, border: `1px solid ${T.danger}`, background: T.panel, color: T.danger },
 };
 function Btn({ h, kind = "quiet", onClick, disabled, children, label, style }) {
@@ -61,8 +64,8 @@ function Paper({ h, art, alt, style }) {
 function Toggle({ h, ui, on, onChange, label }) {
   if (ui?.Switch) return h(ui.Switch, { checked: on, onCheckedChange: onChange, "aria-label": label });
   return h("button", { type: "button", role: "switch", "aria-checked": on, "aria-label": label, onClick: () => onChange(!on),
-    style: { position: "relative", width: 40, height: 24, flex: "0 0 40px", borderRadius: 999, border: 0, cursor: "pointer", background: on ? T.primary : "#8F8A84" } },
-    h("span", { style: { position: "absolute", top: 3, left: on ? 19 : 3, width: 18, height: 18, borderRadius: "50%", background: on ? SKY : "#fff", transition: "left .15s" } }));
+    style: { position: "relative", width: 40, height: 24, flex: "0 0 40px", borderRadius: 999, border: 0, cursor: "pointer", background: on ? SKY : "#8F8A7C" } },
+    h("span", { style: { position: "absolute", top: 3, left: on ? 19 : 3, width: 18, height: 18, borderRadius: "50%", background: "#F4F2EA", transition: "left .15s" } }));
 }
 function Pills({ h, options, value, onChange, label }) {
   return h("div", { role: "group", "aria-label": label, style: { display: "flex", flexWrap: "wrap", gap: 6 } },
@@ -76,7 +79,7 @@ function Segmented({ h, options, value, onChange, label }) {
 }
 function Avatar({ h, name }) {
   const initials = String(name || "?").split(/\s+/).map((x) => x[0]).join("").slice(0, 2).toUpperCase();
-  return h("span", { "aria-hidden": true, style: { width: 34, height: 34, flex: "0 0 34px", borderRadius: "50%", background: "#FFF6D1", border: `2px solid ${INK}`, color: INK, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 } }, initials);
+  return h("span", { "aria-hidden": true, style: { width: 34, height: 34, flex: "0 0 34px", borderRadius: "50%", background: "#EFE6D2", border: `2px solid ${INK}`, color: INK, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 } }, initials);
 }
 function Field({ h, value, onChange, placeholder, label, style }) {
   return h("input", { value, placeholder, "aria-label": label, onChange: (e) => onChange(e.target.value),

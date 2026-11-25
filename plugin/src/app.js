@@ -14,7 +14,7 @@ const PAGES = [
   ["home", "🏠", "Home", "dash"], ["members", "👥", "Members", null], ["roles", "🛡️", "Roles & permissions", null],
   ["plugins", "🧩", "Plugins", null], ["data", "🗂️", "Data & servers", null], ["requests", "🙋", "Requests", "approve"], ["audit", "📜", "Audit log", "audit"],
 ];
-const ROLE_COLORS = { Owner: ["var(--affordance-prominent)", "var(--text-inverse)"], Admin: [SKY, INK], Member: ["var(--surface-inset)", "var(--text-standard)"], Guest: ["#FFF3BF", "#6B4E00"], Ended: ["var(--surface-inset)", "var(--text-subtle)"] };
+const ROLE_COLORS = { Owner: ["var(--affordance-prominent)", "var(--text-inverse)"], Admin: [SKY, ON_SKY], Member: ["var(--surface-inset)", "var(--text-standard)"], Guest: ["#EBE0C6", "#6E5424"], Ended: ["var(--surface-inset)", "var(--text-subtle)"] };
 
 function RoleChip({ h, role, children }) {
   const [bg, fg] = ROLE_COLORS[role] || ROLE_COLORS.Member;
@@ -233,7 +233,7 @@ export function apply(ctx) {
            ["Questions answered", d.answered, "From shared Agent Access counts"],
            ["Plugins in use", d.pluginsInUse, d.updatesReady ? plural(d.updatesReady, "update") + " ready" : "All up to date"]].map(([label, value, note], i) =>
             h(Card, { h, key: label, style: { padding: 18, display: "flex", flexDirection: "column", gap: 8 } }, h("span", { style: { fontSize: 14, color: T.subtle } }, label),
-              h("span", { style: i === 2 ? { ...big, alignSelf: "flex-start", background: `linear-gradient(transparent 70%, ${SKY} 70%, ${SKY} 95%, transparent 95%)` } : big }, value), h("span", { style: { fontSize: 13, color: T.subtle } }, note)))),
+              h("span", { style: i === 2 ? { ...big, alignSelf: "flex-start", background: `linear-gradient(transparent 70%, ${SAGE} 70%, ${SAGE} 95%, transparent 95%)` } : big }, value), h("span", { style: { fontSize: 13, color: T.subtle } }, note)))),
         h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 } },
           h(Card, { h, style: { padding: 18, display: "flex", flexDirection: "column", gap: 12 } },
             h(H2, { h }, "Most asked agents"),
@@ -308,7 +308,7 @@ export function apply(ctx) {
               const locked = !canEdit || r === "Owner" || (p.id === "servers" && me.role !== "Owner");
               return h("span", { key: r, role: "cell", style: { textAlign: "center" } },
                 h("button", { type: "button", role: "checkbox", "aria-checked": on, "aria-label": `${p.label} for ${r}`, disabled: locked, onClick: () => flip(p.id, r, !on),
-                  style: { width: 26, height: 26, borderRadius: 6, cursor: locked ? "default" : "pointer", border: `1.5px solid ${on ? INK : T.prominent}`, background: on ? (r === "Owner" ? T.inset : SKY) : T.panel, color: INK, fontWeight: 800 } }, on ? "✓" : ""));
+                  style: { width: 26, height: 26, borderRadius: 6, cursor: locked ? "default" : "pointer", border: `1.5px solid ${on ? INK : T.prominent}`, background: on ? (r === "Owner" ? T.inset : SKY) : T.panel, color: on && r !== "Owner" ? ON_SKY : INK, fontWeight: 800 } }, on ? "✓" : ""));
             }))))));
   }
 
