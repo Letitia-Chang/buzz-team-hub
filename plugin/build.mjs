@@ -11,11 +11,12 @@ const art = Object.fromEntries(readdirSync(at("./art/")).filter((f) => f.endsWit
   .map((f) => [f.replace(".svg", ""), "data:image/svg+xml;base64," + Buffer.from(read("./art/" + f)).toString("base64")]));
 const out = [
   `// Team Hub ${version} — a Buzz API v1 plugin. Built from plugin/src by plugin/build.mjs; edit those, not this file.`,
-  "// Illustrations: Open Peeps and Open Doodles by Pablo Stanley, CC0 1.0.",
+  "// Illustrations: Open Peeps and Open Doodles by Pablo Stanley, CC0 1.0. Icons: Lucide, ISC.",
   `const SERVER = ${JSON.stringify(config.server)};`,
   `const BOT_PUBKEY = ${JSON.stringify(config.botPubkey)};`,
   `const TEAM_NAME = ${JSON.stringify(config.teamName)};`,
   `const ART = ${JSON.stringify(art)};`,
+  read("./src/icons.js"),
   read("./src/blocks.js"),
   read("./src/app.js"),
 ].join("\n");

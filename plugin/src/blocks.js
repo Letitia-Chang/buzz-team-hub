@@ -23,6 +23,9 @@ const timeLabel = (at) => {
 const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 
 // ----- building blocks -----
+function Icon({ h, name, size, strokeWidth, style }) {
+  return svgIcon(h, name, { size, strokeWidth, style });
+}
 function Page({ h, children }) {
   return h("div", { style: { padding: "32px clamp(16px, 4vw, 48px) 64px", color: T.text, overflowY: "auto", height: "100%", boxSizing: "border-box" } },
     h("div", { style: { maxWidth: 960, margin: "0 auto", display: "flex", flexDirection: "column", gap: 28 } }, children));
@@ -43,7 +46,7 @@ function Card({ h, children, style }) {
 function Callout({ h, icon, tone, children }) {
   const bg = tone === "warn" ? T.warnBg : tone === "danger" ? T.dangerBg : T.inset;
   return h("div", { style: { display: "flex", gap: 12, padding: "14px 16px", borderRadius: 8, background: bg, fontSize: 14, lineHeight: 1.55 } },
-    h("span", { "aria-hidden": true, style: { fontSize: 18 } }, icon), h("div", { style: { flex: 1 } }, children));
+    h(Icon, { h, name: icon, size: 18, style: { marginTop: 2, color: tone === "warn" ? T.warn : tone === "danger" ? T.danger : T.subtle } }), h("div", { style: { flex: 1 } }, children));
 }
 function H2({ h, children, badge }) {
   return h("h2", { style: { margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 10 } }, children, badge ? h(Badge, { h }, badge) : null);
@@ -52,7 +55,7 @@ function Badge({ h, children }) {
   return h("span", { style: { minWidth: 22, height: 22, padding: "0 7px", borderRadius: 999, background: RED, color: "#fff", fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" } }, children);
 }
 function Chip({ h, children, bg, color }) {
-  return h("span", { style: { display: "inline-flex", alignItems: "center", height: 24, padding: "0 8px", borderRadius: 6, background: bg || T.inset, color: color || T.text, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap" } }, children);
+  return h("span", { style: { display: "inline-flex", alignItems: "center", gap: 4, height: 24, padding: "0 8px", borderRadius: 6, background: bg || T.inset, color: color || T.text, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap" } }, children);
 }
 const Sub = ({ h, children, style }) => h("p", { style: { margin: 0, fontSize: 14, lineHeight: 1.55, color: T.subtle, ...style } }, children);
 const Kicker = ({ h, children }) => h("span", { style: { fontSize: 12, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", color: T.meta } }, children);

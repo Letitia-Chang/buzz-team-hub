@@ -9,10 +9,12 @@ export const inject = ["react", "pages", "relay", "host"];
 const STORE = "northstar.team-hub.session:v1";
 const SHARE_KEY = "northstar.team-hub.share-stats";
 const CODE_IN_DM = /sign-in code is (\d{3})-(\d{3})/;
-const AGENT_ACCESS_STATE = "letitia.teammate-access:state";
+// Agent Access 4.1+ stores its state under the new name; older versions used the first.
+const AGENT_ACCESS_STATE = "letitia.agent-access:state";
+const AGENT_ACCESS_STATE_OLD = "letitia.teammate-access:state";
 const PAGES = [
-  ["home", "🏠", "Home", "dash"], ["members", "👥", "Members", null], ["roles", "🛡️", "Roles & permissions", null],
-  ["plugins", "🧩", "Plugins", null], ["data", "🗂️", "Data & servers", null], ["requests", "🙋", "Requests", "approve"], ["audit", "📜", "Audit log", "audit"],
+  ["home", "house", "Home", "dash"], ["members", "users", "Members", null], ["roles", "shield", "Roles & permissions", null],
+  ["plugins", "puzzle", "Plugins", null], ["data", "server", "Data & servers", null], ["requests", "inbox", "Requests", "approve"], ["audit", "scroll-text", "Audit log", "audit"],
 ];
 const ROLE_COLORS = { Owner: ["var(--affordance-prominent)", "var(--text-inverse)"], Admin: [SKY, ON_SKY], Member: ["var(--surface-inset)", "var(--text-standard)"], Guest: ["#EBE0C6", "#6E5424"], Ended: ["var(--surface-inset)", "var(--text-subtle)"] };
 
@@ -46,7 +48,7 @@ export function apply(ctx) {
   /** Opt-in: this person's Agent Access answer counts, by agent and day. Never questions. */
   function agentAccessCounts() {
     try {
-      const state = JSON.parse(localStorage.getItem(AGENT_ACCESS_STATE) || "null");
+      const state = JSON.parse(localStorage.getItem(AGENT_ACCESS_STATE) || localStorage.getItem(AGENT_ACCESS_STATE_OLD) || "null");
       if (!state?.activity) return [];
       const byAgent = new Map();
       for (const a of state.activity) {
@@ -113,7 +115,7 @@ export function apply(ctx) {
     return h(Page, { h },
       h("header", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 } },
         h("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
-          h("span", { "aria-hidden": true, style: { width: 30, height: 30, borderRadius: 8, background: T.inset, display: "inline-flex", alignItems: "center", justifyContent: "center" } }, "🧭"),
+          h("span", { "aria-hidden": true, style: { width: 30, height: 30, borderRadius: 8, background: T.inset, display: "inline-flex", alignItems: "center", justifyContent: "center", color: T.text } }, h(Icon, { h, name: "compass", size: 18 })),
           h("div", null, h("h1", { style: { margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" } }, "Team Hub"), h("span", { style: { fontSize: 12, color: T.meta } }, TEAM_NAME))),
         h("div", { style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" } },
           h(Avatar, { h, name: me.name || env.nameOf(viewer) }), h("span", { style: { fontSize: 14, fontWeight: 600 } }, env.nameOf(viewer, me.name)), h(RoleChip, { h, role: me.role }),
@@ -121,7 +123,7 @@ export function apply(ctx) {
       h("nav", { "aria-label": "Team Hub sections", style: { display: "flex", gap: 2, overflowX: "auto", borderBottom: `1px solid ${T.border}` } },
         allowedPages.map(([id, icon, label]) => h("button", { key: id, type: "button", "aria-current": current === id ? "page" : undefined, onClick: () => setPage(id),
           style: { display: "inline-flex", alignItems: "center", gap: 6, height: 42, padding: "0 12px", border: 0, background: "transparent", font: "inherit", fontSize: 14, whiteSpace: "nowrap", cursor: "pointer", color: current === id ? T.text : T.subtle, fontWeight: current === id ? 700 : 500, boxShadow: current === id ? `inset 0 -2px 0 ${T.focus}` : "none" } },
-          h("span", { "aria-hidden": true }, icon), label))),
+          h(Icon, { h, name: icon }), label))),
       current === "home" && h(Home, env),
       current === "members" && h(Members, env),
       current === "roles" && h(Roles, env),
@@ -173,14 +175,14 @@ export function apply(ctx) {
     return h(Page, { h },
       h("section", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "32px 56px", padding: "24px 0" } },
         h("div", { style: { flex: "1 1 340px", maxWidth: 440, display: "flex", flexDirection: "column", gap: 16 } },
-          h("span", { style: { display: "inline-flex", alignItems: "center", gap: 10, fontWeight: 700 } }, "🧭 Team Hub · ", TEAM_NAME),
+          h("span", { style: { display: "inline-flex", alignItems: "center", gap: 10, fontWeight: 700 } }, h(Icon, { h, name: "compass", size: 18 }), "Team Hub · ", TEAM_NAME),
           h("p", { style: { margin: 0, fontSize: 38, lineHeight: 1.08, fontWeight: 800, letterSpacing: "-0.035em" } }, "Sign in with ", h("span", { style: { background: `linear-gradient(transparent 70%, ${YELLOW} 70%, ${YELLOW} 95%, transparent 95%)` } }, "Buzz"), "."),
           h(Sub, { h, style: { fontSize: 16 } }, "No passwords. We send a one-time code to your Buzz DMs, and this page fills it in for you."),
           h(Card, { h, style: { padding: 20, display: "flex", flexDirection: "column", gap: 12 } },
             phase === "codeSent"
               ? h(React.Fragment, null,
-                  h("p", { style: { margin: 0, fontSize: 15 } }, "📨 Check your Buzz DMs from ", h("strong", null, "Project Board bot"), "."),
-                  h("div", { "aria-label": "One-time code", style: { display: "flex", gap: 8 } }, [0, 1, 2, 3, 4, 5].map((i) => h("span", { key: i, style: { width: 42, height: 50, borderRadius: 8, border: `1.5px solid ${digits[i] ? INK : T.prominent}`, background: digits[i] ? "var(--surface-categorical-blue)" : T.panel, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800 } }, digits[i] || ""))),
+                  h("p", { style: { margin: 0, fontSize: 15, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } }, h(Icon, { h, name: "mail" }), h("span", null, "Check your Buzz DMs from ", h("strong", null, "Project Board bot"), ".")),
+                  h("div", { "aria-label": "One-time code", style: { display: "flex", gap: 8 } }, [0, 1, 2, 3, 4, 5].map((i) => h("span", { key: i, style: { width: 42, height: 50, borderRadius: 8, border: `1.5px solid ${digits[i] ? INK : T.prominent}`, background: digits[i] ? T.subtleBg : T.panel, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800 } }, digits[i] || ""))),
                   h("input", { inputMode: "numeric", autoComplete: "one-time-code", maxLength: 7, value: code, onChange: (e) => setCode(e.target.value), "aria-label": "Or type the code", placeholder: "Or type the code", style: { height: 38, padding: "0 12px", borderRadius: 8, border: `1px solid ${T.prominent}`, background: T.panel, color: T.text, font: "inherit", letterSpacing: "0.2em", maxWidth: 200 } }),
                   h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
                     h(Btn, { h, kind: "primary", disabled: busy || digits.length !== 6, onClick: () => verify(digits) }, busy ? "Checking…" : "Continue"),
@@ -190,7 +192,7 @@ export function apply(ctx) {
                   h(Sub, { h }, "You're signed in to Buzz here, so we know who you are. We just need to check it's really you."),
                   h(Btn, { h, kind: "sky", disabled: busy || phase === "checking", onClick: requestCode, style: { minHeight: 42 } }, busy ? "Sending…" : "Send me a code")),
             error && h("p", { role: "alert", style: { margin: 0, color: T.danger, fontSize: 14 } }, error)),
-          h(Callout, { h, icon: "🔒" }, "Only people in the team's private access channel can sign in. Team Hub never sees your Buzz key, and the team's data stays on the office server.")),
+          h(Callout, { h, icon: "lock" }, "Only people in the team's private access channel can sign in. Team Hub never sees your Buzz key, and the team's data stays on the office server.")),
         h(Paper, { h, art: "p_paper", alt: "Someone reading a note", style: { flex: "0 1 280px", maxWidth: 300, aspectRatio: "0.8", border: 0 } })));
   }
 
@@ -274,7 +276,7 @@ export function apply(ctx) {
         h("div", { style: { flex: "999 1 300px", display: "flex", flexDirection: "column", gap: 8 } },
           h(H2, { h }, "Add them to the access channel in Buzz"),
           h(Sub, { h }, "That private channel is the guest list. Anyone in it can sign in as a Member. Take them out of it and they're signed out within 5 minutes."),
-          h("div", null, h(Btn, { h, onClick: async () => { try { await (ctx.host.writeClipboardText ? ctx.host.writeClipboardText(inviteText) : navigator.clipboard.writeText(inviteText)); flash("Invite message copied"); } catch { flash("Couldn't copy"); } } }, "📋 Copy an invite message")))),
+          h("div", null, h(Btn, { h, onClick: async () => { try { await (ctx.host.writeClipboardText ? ctx.host.writeClipboardText(inviteText) : navigator.clipboard.writeText(inviteText)); flash("Invite message copied"); } catch { flash("Couldn't copy"); } } }, h(Icon, { h, name: "copy" }), "Copy an invite message")))),
       !state.data ? h(Loading, { h, state }) : h(Card, { h, style: { overflow: "hidden" } },
         state.data.members.map((m, i) => {
           const locked = !canManage || m.role === "Owner" || m.role === "Ended";
@@ -308,7 +310,7 @@ export function apply(ctx) {
               const locked = !canEdit || r === "Owner" || (p.id === "servers" && me.role !== "Owner");
               return h("span", { key: r, role: "cell", style: { textAlign: "center" } },
                 h("button", { type: "button", role: "checkbox", "aria-checked": on, "aria-label": `${p.label} for ${r}`, disabled: locked, onClick: () => flip(p.id, r, !on),
-                  style: { width: 26, height: 26, borderRadius: 6, cursor: locked ? "default" : "pointer", border: `1.5px solid ${on ? INK : T.prominent}`, background: on ? (r === "Owner" ? T.inset : SKY) : T.panel, color: on && r !== "Owner" ? ON_SKY : INK, fontWeight: 800 } }, on ? "✓" : ""));
+                  style: { width: 26, height: 26, borderRadius: 6, cursor: locked ? "default" : "pointer", border: `1.5px solid ${on ? INK : T.prominent}`, background: on ? (r === "Owner" ? T.inset : SKY) : T.panel, color: on && r !== "Owner" ? ON_SKY : INK, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center" } }, on ? h(Icon, { h, name: "check", size: 14, strokeWidth: 2.25 }) : null));
             }))))));
   }
 
@@ -318,7 +320,7 @@ export function apply(ctx) {
     const act = async (id, action, done) => { const r = await api(`/api/plugins/${id}/${action}`, { method: "POST" }); flash(r.status === 200 ? done : r.data.error); void reload(); };
     const setLevel = async (id, level) => { const r = await api(`/api/plugins/${id}`, { method: "PUT", body: { level } }); if (r.status !== 200) flash(r.data.error); void reload(); };
     const copyTrust = async () => { const r = await api("/api/plugin-trust"); try { const text = JSON.stringify(r.data, null, 2); await (ctx.host.writeClipboardText ? ctx.host.writeClipboardText(text) : navigator.clipboard.writeText(text)); flash("Trust file copied. Save it as plugin-trust.json and run `buzzodz plugin trust`."); } catch { flash("Couldn't copy"); } };
-    const stateLabel = (p) => p.state === "review" ? ["Waiting for review", T.warn] : p.state === "rejected" ? ["Rejected", T.danger] : p.update ? [`Update ready: ${p.update.version}`, "var(--text-categorical-blue)"] : ["Approved · up to date", T.ok];
+    const stateLabel = (p) => p.state === "review" ? ["Waiting for review", T.warn] : p.state === "rejected" ? ["Rejected", T.danger] : p.update ? [`Update ready: ${p.update.version}`, T.warn] : ["Approved · up to date", T.ok];
     return h(React.Fragment, null,
       h(Title, { h, kicker: "Plugins", title: "Team plugins", sub: "Approved here, installed from Buzz. Each plugin checks your role before it shows anything.", action: h(Btn, { h, onClick: copyTrust }, "Copy trust file") }),
       !state.data ? h(Loading, { h, state }) : h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 } },
@@ -327,7 +329,7 @@ export function apply(ctx) {
           return h(Card, { h, key: p.id, style: { padding: 18, display: "flex", flexDirection: "column", gap: 12 } },
             h("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
               h("div", { style: { flex: 1, minWidth: 0 } }, h(H2, { h }, p.name), h(Sub, { h, style: { fontSize: 13 } }, `v${p.version || "?"}${p.publisher ? " · by " + p.publisher : ""}`)),
-              p.verified ? h(Chip, { h, bg: T.okBg, color: T.ok }, "✓ Verified") : h(Chip, { h, bg: T.warnBg, color: T.warn }, "Not verified")),
+              p.verified ? h(Chip, { h, bg: T.okBg, color: T.ok }, h(Icon, { h, name: "check", size: 13 }), "Verified") : h(Chip, { h, bg: T.warnBg, color: T.warn }, "Not verified")),
             p.description ? h(Sub, { h }, p.description) : null,
             h("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, h("span", { style: { fontSize: 13, fontWeight: 600 } }, "Who can use it after installing"),
               canManage ? h(Pills, { h, label: "Who can use it", value: p.level, onChange: (l) => setLevel(p.id, l), options: [["Everyone", "Everyone"], ["Members", "Members and up"], ["Admins", "Admins and up"]] })
@@ -339,7 +341,7 @@ export function apply(ctx) {
               canManage && p.update ? h(Btn, { h, kind: "sky", onClick: () => act(p.id, "rollout", `${p.name} ${p.update.version} rolls out to the team`) }, `Roll out ${p.update.version}`) : null,
               !p.canUse && p.state === "approved" ? h(Btn, { h, onClick: async () => { const r = await api("/api/requests", { method: "POST", body: { kind: "plugin", target: p.id } }); flash(r.status === 201 ? "Asked an admin" : r.data.error); } }, "Ask for access") : null));
         })),
-      h(Callout, { h, icon: "✅" }, h("strong", null, "Verified"), " means the release is signed by a publisher this team trusts. With the trust file, Buzz can refuse anything else."));
+      h(Callout, { h, icon: "circle-check" }, h("strong", null, "Verified"), " means the release is signed by a publisher this team trusts. With the trust file, Buzz can refuse anything else."));
   }
 
   function Data({ h, api, me, flash }) {
@@ -349,14 +351,14 @@ export function apply(ctx) {
     return h(React.Fragment, null,
       h(Title, { h, kicker: "Data & servers", title: "Where the data lives" }),
       h(Card, { h, style: { padding: 18, display: "flex", flexDirection: "column", gap: 12 } },
-        h("div", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 } }, h("span", { "aria-hidden": true, style: { fontSize: 22 } }, "🗂️"), h(H2, { h }, "Office server"),
+        h("div", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 } }, h(Icon, { h, name: "server", size: 20 }), h(H2, { h }, "Office server"),
           h(Chip, { h, bg: d?.ok ? T.okBg : T.dangerBg, color: d?.ok ? T.ok : T.danger }, state.loading ? "Checking…" : d?.ok ? "Online" : "Unreachable")),
         h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 } },
           [["Address", SERVER.replace("https://", "")], ["Reached through", "Cloudflare Tunnel → office machine"], ["Up for", d ? `${Math.floor(d.uptimeSeconds / 3600)}h ${Math.floor((d.uptimeSeconds % 3600) / 60)}m` : "…"], ["Version", d?.version || "…"]].map(([k, v]) =>
             h("div", { key: k, style: { padding: 12, borderRadius: 8, background: T.inset } }, h(Kicker, { h }, k), h("p", { style: { margin: "4px 0 0", fontSize: 14, fontWeight: 600, wordBreak: "break-all" } }, v)))),
         h("div", null, h(Btn, { h, onClick: async () => { const t0 = Date.now(); await reload(); flash(`Reached the office server in ${Date.now() - t0} ms`); } }, "Test connection"))),
       h(Card, { h, style: { padding: 18, display: "flex", flexDirection: "column", gap: 8 } },
-        h("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, h("span", { "aria-hidden": true, style: { fontSize: 22 } }, "🤖"), h(H2, { h }, "Project Board bot")),
+        h("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, h(Icon, { h, name: "bot", size: 20 }), h(H2, { h }, "Project Board bot")),
         h(Sub, { h }, "A separate Buzz account, so nobody's personal key sits on the server. It does two things: sends sign-in codes by DM, and reads who's in the access channel.")),
       h(Card, { h, style: { padding: 18, display: "flex", flexDirection: "column", gap: 4 } },
         h(H2, { h }, "Sign-in & sessions"),
