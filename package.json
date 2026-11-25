@@ -6,7 +6,7 @@
   "description": "Team Hub for Buzz: Sign in with Buzz, roles, plugins, requests, audit log and the team dashboard",
   "scripts": {
     "start": "node server/server.js",
-    "test": "node --test test/auth.test.mjs test/hub.test.mjs"
+    "test": "node --test test/auth.test.mjs test/hub.test.mjs test/build.test.mjs"
   },
   "engines": { "node": ">=20" }
 }
