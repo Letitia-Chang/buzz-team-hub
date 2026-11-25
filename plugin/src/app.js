@@ -390,5 +390,5 @@ export function apply(ctx) {
           : h("div", { style: { padding: 18 } }, h(Sub, { h }, "Nothing yet."))));
   }
 
-  ctx.pages.register({ id: "main", title: "Team Hub", primary: true, component: TeamHub });
+  ctx.pages.register({ id: "main", title: "Team Hub", primary: true, icon: iconDataUrl("compass"), component: TeamHub });
 }
