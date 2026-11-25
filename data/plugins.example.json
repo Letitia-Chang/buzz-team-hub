@@ -1,0 +1,7 @@
+{
+  "trustedPublishers": ["<hex pubkey of North Star's plugin signing key>"],
+  "plugins": {
+    "northstar.team-hub": { "name": "Team Hub", "repo": "git@github.com:Letitia-Chang/buzz-team-hub.git", "version": "1.0.0", "publisher": "North Star AI Labs", "signedBy": "<same hex pubkey>", "description": "Roles, plugins and the Project Board for the team.", "level": "Everyone", "state": "approved" },
+    "letitia.teammate-access": { "name": "Agent Access", "repo": "git@github.com:Letitia-Chang/buzz-teammate-access.git", "version": "4.0.0", "publisher": "Letitia Chang", "signedBy": null, "description": "Share your own agents with teammates, with limits.", "level": "Everyone", "state": "approved" }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "team-hub",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Team Hub for Buzz: Sign in with Buzz, roles, plugins, requests, audit log and the team dashboard",
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "node --test test/auth.test.mjs test/hub.test.mjs"
+  },
+  "engines": { "node": ">=20" }
+}

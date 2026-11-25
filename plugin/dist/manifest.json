@@ -1,0 +1,21 @@
+{
+  "id": "northstar.team-hub",
+  "name": "Team Hub",
+  "apiVersion": 1,
+  "description": "North Star AI Labs's Team Hub: sign in with Buzz, roles, team plugins, the Project Board and the team dashboard.",
+  "updates": {
+    "defaultEnabled": true
+  },
+  "discovery": {
+    "category": "developer-tools-and-integrations",
+    "tags": [
+      "Teams",
+      "Admin"
+    ]
+  },
+  "host": {
+    "networkOrigins": [
+      "https://nstr-data.northstar-ai-labs.com"
+    ]
+  }
+}
