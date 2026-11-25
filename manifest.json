@@ -1,0 +1,16 @@
+{
+  "id": "northstar.team-hub-demo",
+  "name": "Team Hub demo",
+  "apiVersion": 1,
+  "description": "A demo of Team Hub for North Star AI Labs, with sample data: sign in with Buzz, roles, team plugins, requests and the audit log. Nothing is saved or sent.",
+  "updates": {
+    "defaultEnabled": true
+  },
+  "discovery": {
+    "category": "developer-tools-and-integrations",
+    "tags": [
+      "Teams",
+      "Admin"
+    ]
+  }
+}
